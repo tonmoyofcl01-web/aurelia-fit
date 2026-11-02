@@ -1,15 +1,29 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
-// Connect to MongoDB Atlas.
-export const connectDB = async () => {
-  try {
-    const connection = await mongoose.connect(process.env.MONGODB_URI);
+let connectionPromise;
 
-    console.log(
-      `MongoDB connected successfully: ${connection.connection.host}`,
-    );
-  } catch (error) {
-    console.error("MongoDB connection failed:", error.message);
-    process.exit(1);
+/** Connect once and reuse the Mongoose connection across requests. */
+export async function connectDB() {
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
   }
-};
+
+  if (!process.env.MONGODB_URI) {
+    throw new Error('MONGODB_URI is missing from the backend environment.');
+  }
+
+  if (!connectionPromise) {
+    connectionPromise = mongoose.connect(process.env.MONGODB_URI)
+      .then(() => {
+        console.log(`MongoDB connected successfully: ${mongoose.connection.host}`);
+        return mongoose.connection;
+      })
+      .catch((error) => {
+        connectionPromise = undefined;
+        console.error('MongoDB connection failed:', error.message);
+        throw error;
+      });
+  }
+
+  return connectionPromise;
+}
