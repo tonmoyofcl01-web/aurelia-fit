@@ -39,6 +39,9 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -150,6 +153,138 @@ const date = (v) =>
         year: "numeric",
       })
     : "—";
+
+const membershipStatusColors = {
+  active: "#cf465b",
+  expired: "#b17b8b",
+  pending: "#d6ad72",
+  inactive: "#71858a",
+  cancelled: "#87616c",
+  suspended: "#9b8b69",
+};
+
+const membershipStatusColor = (status) =>
+  membershipStatusColors[String(status || "").toLowerCase()] || "#8b7780";
+
+const membershipStatusLabel = (status) =>
+  String(status || "unknown").replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+const getDhakaMonthKey = (value = new Date()) => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Dhaka",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(value);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  return `${year}-${month}`;
+};
+
+const shiftMonthKey = (monthKey, offset) => {
+  const [year, month] = String(monthKey).split("-").map(Number);
+  const shifted = new Date(Date.UTC(year, month - 1 + offset, 1));
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}`;
+};
+
+const fillMonthlyRevenue = (rows = [], startMonth, endMonth, maxMonths = 36) => {
+  const totals = new Map((rows || []).map((row) => [row._id, Number(row.total) || 0]));
+  const [startYear, startNumber] = String(startMonth || "").split("-").map(Number);
+  const [endYear, endNumber] = String(endMonth || "").split("-").map(Number);
+  const span = (endYear - startYear) * 12 + (endNumber - startNumber);
+  if (!Number.isFinite(span) || span < 0 || span + 1 > maxMonths) {
+    return [...(rows || [])].sort((a, b) => String(a._id).localeCompare(String(b._id)));
+  }
+  return Array.from({ length: span + 1 }, (_, index) => {
+    const month = shiftMonthKey(startMonth, index);
+    return { _id: month, total: totals.get(month) || 0 };
+  });
+};
+
+const formatMonthTick = (monthKey) => {
+  const [year, month] = String(monthKey || "").split("-").map(Number);
+  if (!year || !month) return monthKey || "";
+  return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-US", {
+    month: "short",
+    timeZone: "UTC",
+  });
+};
+
+const formatCompactMoney = (value) => {
+  const amount = Number(value) || 0;
+  if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}m`;
+  if (amount >= 1000) return `${(amount / 1000).toFixed(amount % 1000 ? 1 : 0)}k`;
+  return String(amount);
+};
+
+function MembershipStatusVisual({ stats = [] }) {
+  const chartData = (stats || [])
+    .map((item) => ({
+      status: String(item._id || "unknown").toLowerCase(),
+      label: membershipStatusLabel(item._id),
+      count: Math.max(0, Number(item.count) || 0),
+    }))
+    .filter((item) => item.count > 0)
+    .sort((a, b) => b.count - a.count);
+  const total = chartData.reduce((sum, item) => sum + item.count, 0);
+
+  if (!total) {
+    return <div className="membership-empty">No membership records yet.</div>;
+  }
+
+  return (
+    <div className="membership-visual">
+      <div className="membership-donut-wrap">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={chartData}
+              dataKey="count"
+              nameKey="label"
+              innerRadius="62%"
+              outerRadius="88%"
+              paddingAngle={chartData.length > 1 ? 3 : 0}
+              stroke="none"
+              isAnimationActive={false}
+            >
+              {chartData.map((item) => (
+                <Cell key={item.status} fill={membershipStatusColor(item.status)} />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={{
+                background: "#24151b",
+                border: "1px solid #603440",
+                color: "#f7e9ec",
+                borderRadius: 10,
+                fontSize: 11,
+              }}
+              formatter={(value, name) => [`${value} member${Number(value) === 1 ? "" : "s"}`, name]}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="membership-donut-center" aria-label={`${total} total memberships`}>
+          <strong>{total}</strong>
+          <span>Total</span>
+        </div>
+      </div>
+      <div className="membership-legend" aria-label="Membership status breakdown">
+        {chartData.map((item) => {
+          const percentage = Math.round((item.count / total) * 100);
+          return (
+            <div className="membership-legend-row" key={item.status}>
+              <span className="membership-status-dot" style={{ background: membershipStatusColor(item.status) }} />
+              <span className="membership-legend-label" title={item.label}>{item.label}</span>
+              <span className="membership-legend-value">
+                <strong>{item.count}</strong>
+                <small>{percentage}%</small>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 const formatWorkoutSchedule = (days = []) => days.map((day) => {
   const exercises = (day.exercises || []).map((exercise) => `${exercise.name}${exercise.sets || exercise.reps ? ` (${exercise.sets || 3}x${exercise.reps || "10"})` : ""}`).join("; ");
@@ -722,62 +857,72 @@ function Dashboard() {
           </div>
           <div className="dashboard-grid">
             <section className="panel revenue-panel">
-              <div className="panel-heading">
+              <div className="panel-heading revenue-panel-heading">
                 <div>
                   <span className="eyebrow">REVENUE OVERVIEW</span>
                   <h3>Monthly performance</h3>
+                  <p className="panel-subtitle">Paid revenue across the last six months</p>
                 </div>
+                <span className="chart-total">{money((data.revenue || []).reduce((sum, item) => sum + (Number(item.total) || 0), 0))}</span>
               </div>
               <div className="chart-wrap">
-                {(data.revenue || []).length === 0 ? <div className="empty-chart">Revenue activity will appear here after the first payment.</div> : <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={data.revenue || []}>
-                    <CartesianGrid stroke="#452b34" vertical={false} />
+                {(data.revenue || []).length === 0 ? <div className="empty-chart">No paid revenue recorded in the last six months.</div> : <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={fillMonthlyRevenue(data.revenue || [], shiftMonthKey(getDhakaMonthKey(), -5), getDhakaMonthKey())}
+                    margin={{ top: 12, right: 12, left: 2, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="dashboardRevenueFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#cf465b" stopOpacity={0.3} />
+                        <stop offset="100%" stopColor="#cf465b" stopOpacity={0.015} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="#452b34" vertical={false} strokeDasharray="3 5" />
                     <XAxis
                       dataKey="_id"
-                      tick={{ fill: "#7f8b85", fontSize: 11 }}
+                      tickFormatter={formatMonthTick}
+                      tick={{ fill: "#9b8990", fontSize: 10 }}
                       axisLine={false}
+                      tickLine={false}
+                      minTickGap={18}
                     />
                     <YAxis
-                      tick={{ fill: "#7f8b85", fontSize: 11 }}
+                      tickFormatter={formatCompactMoney}
+                      tick={{ fill: "#9b8990", fontSize: 10 }}
                       axisLine={false}
+                      tickLine={false}
+                      width={38}
+                      domain={[0, (max) => Math.max(100, max * 1.18)]}
                     />
                     <Tooltip
-                      contentStyle={{
-                        background: "#24151b",
-                        border: "1px solid #603440",
-                        color: "#f7e9ec",
-                        borderRadius: 10,
-                      }}
-                      formatter={(v) => money(v)}
+                      contentStyle={{ background: "#24151b", border: "1px solid #603440", color: "#f7e9ec", borderRadius: 10, fontSize: 11 }}
+                      labelFormatter={(value) => `${formatMonthTick(value)} ${String(value).slice(0, 4)}`}
+                      formatter={(value) => [money(value), "Paid revenue"]}
                     />
                     <Area
                       type="monotone"
                       dataKey="total"
-                      stroke="#cf465b"
-                      fill="#cf465b"
-                      fillOpacity={0.12}
+                      name="Paid revenue"
+                      stroke="#e36b7d"
+                      strokeWidth={2.5}
+                      fill="url(#dashboardRevenueFill)"
+                      activeDot={{ r: 5, fill: "#f0a3ad", stroke: "#35151f", strokeWidth: 2 }}
+                      dot={{ r: 3, fill: "#cf465b", stroke: "#f0a3ad", strokeWidth: 1 }}
+                      isAnimationActive={false}
                     />
                   </AreaChart>
                 </ResponsiveContainer>}
               </div>
             </section>
-            <section className="panel">
+            <section className="panel membership-health-panel">
               <div className="panel-heading">
                 <div>
                   <span className="eyebrow">MEMBERSHIP HEALTH</span>
                   <h3>Current status</h3>
+                  <p className="panel-subtitle">Memberships by status</p>
                 </div>
               </div>
-              {(data.membershipStats || []).length ? (
-                data.membershipStats.map((x) => (
-                  <div className="report-line" key={x._id}>
-                    <span className="status">{x._id}</span>
-                    <b>{x.count}</b>
-                  </div>
-                ))
-              ) : (
-                <div className="empty-state">No membership data yet.</div>
-              )}
+              <MembershipStatusVisual stats={data.membershipStats || []} />
             </section>
           </div>
           <div className="bottom-grid">
@@ -1351,16 +1496,25 @@ function Reports() {
             <div className="stat-card"><div className="stat-top"><span>Attendance visits</span><CalendarCheck size={18} /></div><strong>{data.attendance || 0}</strong><small>Recorded check-ins</small></div>
             <div className="stat-card"><div className="stat-top"><span>Paid revenue</span><Coins size={18} /></div><strong>{money((data.revenue || []).reduce((sum, item) => sum + item.total, 0))}</strong><small>Within reporting period</small></div>
           </div>
-          <div className="panel revenue-panel">
-            <div className="panel-heading"><div><span className="eyebrow">REVENUE REPORT</span><h3>Monthly revenue</h3></div></div>
+          <div className="panel revenue-panel reports-revenue-panel">
+            <div className="panel-heading revenue-panel-heading">
+              <div><span className="eyebrow">REVENUE REPORT</span><h3>Monthly revenue</h3><p className="panel-subtitle">Paid transactions grouped by month</p></div>
+              <span className="chart-total">{money((data.revenue || []).reduce((sum, item) => sum + (Number(item.total) || 0), 0))}</span>
+            </div>
             <div className="chart-wrap">
               {(data.revenue || []).length === 0 ? <div className="empty-chart">No paid revenue was recorded during this period.</div> : <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data.revenue}>
-                  <CartesianGrid stroke="#452b34" vertical={false} />
-                  <XAxis dataKey="_id" tick={{ fill: "#a18d94", fontSize: 11 }} axisLine={false} />
-                  <YAxis tick={{ fill: "#a18d94", fontSize: 11 }} axisLine={false} />
-                  <Tooltip contentStyle={{ background: "#24151b", border: "1px solid #603440", borderRadius: 10, color: "#f7e9ec" }} formatter={(value) => money(value)} />
-                  <Area type="monotone" dataKey="total" stroke="#cf465b" fill="#cf465b" fillOpacity={0.16} />
+                <AreaChart data={fillMonthlyRevenue(data.revenue || [], from.slice(0, 7), to.slice(0, 7))} margin={{ top: 12, right: 12, left: 2, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="reportRevenueFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#cf465b" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#cf465b" stopOpacity={0.015} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="#452b34" vertical={false} strokeDasharray="3 5" />
+                  <XAxis dataKey="_id" tickFormatter={formatMonthTick} tick={{ fill: "#a18d94", fontSize: 10 }} axisLine={false} tickLine={false} minTickGap={18} />
+                  <YAxis tickFormatter={formatCompactMoney} tick={{ fill: "#a18d94", fontSize: 10 }} axisLine={false} tickLine={false} width={42} domain={[0, (max) => Math.max(100, max * 1.18)]} />
+                  <Tooltip contentStyle={{ background: "#24151b", border: "1px solid #603440", borderRadius: 10, color: "#f7e9ec", fontSize: 11 }} labelFormatter={(value) => `${formatMonthTick(value)} ${String(value).slice(0, 4)}`} formatter={(value) => [money(value), "Paid revenue"]} />
+                  <Area type="monotone" dataKey="total" name="Paid revenue" stroke="#e36b7d" strokeWidth={2.5} fill="url(#reportRevenueFill)" activeDot={{ r: 5, fill: "#f0a3ad", stroke: "#35151f", strokeWidth: 2 }} dot={{ r: 3, fill: "#cf465b", stroke: "#f0a3ad", strokeWidth: 1 }} isAnimationActive={false} />
                 </AreaChart>
               </ResponsiveContainer>}
             </div>
@@ -1369,8 +1523,8 @@ function Reports() {
             <section className="panel"><div className="panel-heading"><div><span className="eyebrow">PAYMENT STATUS</span><h3>Payment summary</h3></div></div>
               {(data.paymentStats || []).length ? data.paymentStats.map((item) => <div className="report-line" key={item._id}><span className={`status ${item._id}`}>{item._id}</span><b>{money(item.total)}</b><small>{item.count} records</small></div>) : <div className="empty-state">No payment records in this period.</div>}
             </section>
-            <section className="panel"><div className="panel-heading"><div><span className="eyebrow">MEMBERSHIP MIX</span><h3>Membership status</h3></div></div>
-              {(data.membershipStats || []).length ? data.membershipStats.map((item) => <div className="report-line" key={item._id}><span className={`status ${item._id}`}>{item._id}</span><b>{item.count}</b></div>) : <div className="empty-state">No membership data in this period.</div>}
+            <section className="panel membership-status-panel"><div className="panel-heading"><div><span className="eyebrow">MEMBERSHIP MIX</span><h3>Membership status</h3><p className="panel-subtitle">Distribution for the selected period</p></div></div>
+              <MembershipStatusVisual stats={data.membershipStats || []} />
             </section>
           </div>
         </>

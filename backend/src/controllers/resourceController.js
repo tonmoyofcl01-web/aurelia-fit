@@ -179,7 +179,13 @@ export const createResource = (key) =>
         return res.status(400).json({ message: 'Choose a membership belonging to the selected member.' });
       }
     }
-    if (key === 'payments' && payload.status === 'paid') payload.paidAt = new Date();
+    if (key === 'payments') {
+      // The schema defaults new payments to "paid". Set that default here as
+      // well so paidAt is always populated for newly created paid payments.
+      payload.status ??= 'paid';
+      if (payload.status === 'paid') payload.paidAt = new Date();
+      else delete payload.paidAt;
+    }
 
     if (key === 'attendance') {
       const member = await Member.findById(payload.member);
@@ -243,7 +249,23 @@ export const updateResource = (key) =>
         }
       }
     }
-    if (key === 'payments' && payload.status === 'paid' && !doc.paidAt) payload.paidAt = new Date();
+    if (key === 'payments') {
+      if (payload.status !== undefined) {
+        if (payload.status === 'paid') {
+          // Preserve the original payment date when editing an existing paid
+          // record, but record a fresh date when moving pending/refunded -> paid.
+          payload.paidAt = doc.status === 'paid'
+            ? (doc.paidAt || doc.createdAt || new Date())
+            : new Date();
+        } else {
+          // A pending/refunded record must not contribute to paid revenue.
+          payload.paidAt = null;
+        }
+      } else if (doc.status === 'paid' && !doc.paidAt) {
+        // Repair legacy paid records when they are next edited.
+        payload.paidAt = doc.createdAt || new Date();
+      }
+    }
     if (key === 'workouts' && payload.trainer && !(await Trainer.exists({ _id: payload.trainer }))) {
       return res.status(400).json({ message: 'Select a valid trainer.' });
     }
@@ -333,12 +355,18 @@ export const dashboard = asyncHandler(async (req, res) => {
       { $group: { _id: null, total: { $sum: '$amount' } } },
     ]),
     Payment.aggregate([
-      { $match: { status: 'paid', paidAt: { $gte: monthStart } } },
+      { $match: { status: 'paid' } },
+      // Older paid records may not have paidAt. Their createdAt is the best
+      // available payment date and keeps historical revenue from disappearing.
+      { $addFields: { effectivePaidAt: { $ifNull: ['$paidAt', '$createdAt'] } } },
+      { $match: { effectivePaidAt: { $gte: monthStart, $lte: now } } },
       { $group: { _id: null, total: { $sum: '$amount' } } },
     ]),
     Payment.aggregate([
-      { $match: { status: 'paid', paidAt: { $gte: sixMonthsAgo, $lte: now } } },
-      { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$paidAt', timezone: '+06:00' } }, total: { $sum: '$amount' } } },
+      { $match: { status: 'paid' } },
+      { $addFields: { effectivePaidAt: { $ifNull: ['$paidAt', '$createdAt'] } } },
+      { $match: { effectivePaidAt: { $gte: sixMonthsAgo, $lte: now } } },
+      { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$effectivePaidAt', timezone: '+06:00' } }, total: { $sum: '$amount' } } },
       { $sort: { _id: 1 } },
     ]),
     Membership.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }, { $sort: { _id: 1 } }]),
@@ -400,12 +428,17 @@ export const reports = asyncHandler(async (req, res) => {
 
   const [revenue, paymentStats, attendance, membershipStats, registrations] = await Promise.all([
     Payment.aggregate([
-      { $match: { status: 'paid', paidAt: { $gte: from, $lte: to } } },
-      { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$paidAt', timezone: '+06:00' } }, total: { $sum: '$amount' }, count: { $sum: 1 } } },
+      { $match: { status: 'paid' } },
+      { $addFields: { effectivePaidAt: { $ifNull: ['$paidAt', '$createdAt'] } } },
+      { $match: { effectivePaidAt: { $gte: from, $lte: to } } },
+      { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$effectivePaidAt', timezone: '+06:00' } }, total: { $sum: '$amount' }, count: { $sum: 1 } } },
       { $sort: { _id: 1 } },
     ]),
     Payment.aggregate([
-      { $match: { createdAt: { $gte: from, $lte: to } } },
+      // Paid transactions are grouped by the actual paid date (falling back to
+      // createdAt for legacy records); unpaid transactions use createdAt.
+      { $addFields: { reportDate: { $cond: [{ $eq: ['$status', 'paid'] }, { $ifNull: ['$paidAt', '$createdAt'] }, '$createdAt'] } } },
+      { $match: { reportDate: { $gte: from, $lte: to } } },
       { $group: { _id: '$status', total: { $sum: '$amount' }, count: { $sum: 1 } } },
       { $sort: { _id: 1 } },
     ]),
