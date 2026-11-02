@@ -227,3 +227,35 @@ th { background: #21131a; color: #b19aa2; }
   .notification-btn { width: 36px; height: 36px; }
   .profile-mini-button { padding: 8px 7px; }
 }
+
+
+/* Final notification and account-control polish. */
+.notification-popover {
+  max-height: min(390px, calc(100dvh - 104px));
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #61303d transparent;
+}
+.notification-popover::-webkit-scrollbar { width: 5px; }
+.notification-popover::-webkit-scrollbar-thumb { background: #61303d; border-radius: 10px; }
+.notification-popover::-webkit-scrollbar-track { background: transparent; }
+.notification-heading .text-btn {
+  min-height: 28px;
+  padding: 5px 8px;
+  border-radius: 6px;
+}
+.notification-heading .text-btn:hover { background: #2c1820; color: #fff0f2; }
+.notification-item:focus-visible,
+.notification-heading .text-btn:focus-visible {
+  outline: 2px solid #f08b9b;
+  outline-offset: -2px;
+}
+.profile-settings-action { pointer-events: none; }
+.profile-mini-button { outline-offset: 3px; }
+@media (max-width: 760px) {
+  .notification-popover {
+    right: -4px;
+    width: min(330px, calc(100vw - 28px));
+    max-height: calc(100dvh - 92px);
+  }
+}

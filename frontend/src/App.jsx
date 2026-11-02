@@ -61,7 +61,7 @@ const pageRoles = {
   Attendance: ["owner", "admin", "receptionist", "trainer"],
   Payments: ["owner", "admin", "receptionist"],
   "Workout Plans": ["owner", "admin", "trainer"],
-  Settings: ["owner", "admin"],
+  Settings: ["owner", "admin", "receptionist", "trainer"],
 };
 
 const resources = {
@@ -178,6 +178,7 @@ function App() {
     [profileOpen, setProfileOpen] = useState(false);
   const toastTimer = useRef(null);
   const profileMenuRef = useRef(null);
+  const notificationMenuRef = useRef(null);
   const notify = (message) => {
     setToast(message);
     window.clearTimeout(toastTimer.current);
@@ -185,22 +186,24 @@ function App() {
   };
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
   useEffect(() => {
-    if (!profileOpen) return undefined;
+    if (!profileOpen && !notificationsOpen) return undefined;
     const closeOnOutside = (event) => {
       if (!profileMenuRef.current?.contains(event.target)) setProfileOpen(false);
+      if (!notificationMenuRef.current?.contains(event.target)) setNotificationsOpen(false);
     };
     const closeOnEscape = (event) => {
-      if (event.key === "Escape") setProfileOpen(false);
+      if (event.key === "Escape") {
+        setProfileOpen(false);
+        setNotificationsOpen(false);
+      }
     };
-    document.addEventListener("mousedown", closeOnOutside);
-    document.addEventListener("touchstart", closeOnOutside);
+    document.addEventListener("pointerdown", closeOnOutside);
     document.addEventListener("keydown", closeOnEscape);
     return () => {
-      document.removeEventListener("mousedown", closeOnOutside);
-      document.removeEventListener("touchstart", closeOnOutside);
+      document.removeEventListener("pointerdown", closeOnOutside);
       document.removeEventListener("keydown", closeOnEscape);
     };
-  }, [profileOpen]);
+  }, [profileOpen, notificationsOpen]);
   const loadUser = async () => {
     try {
       const r = await api.get("/auth/me");
@@ -213,7 +216,7 @@ function App() {
   };
   useEffect(() => {
     loadUser();
-    const f = () => { setUser(null); setNotificationsOpen(false); };
+    const f = () => { setUser(null); setNotificationsOpen(false); setProfileOpen(false); };
     window.addEventListener("aurelia:unauthorized", f);
     return () => window.removeEventListener("aurelia:unauthorized", f);
   }, []);
@@ -233,9 +236,12 @@ function App() {
     }
   };
   const toggleNotifications = async () => {
-    const nextOpen = !notificationsOpen;
-    setNotificationsOpen(nextOpen);
-    if (!nextOpen) return;
+    if (notificationsOpen) {
+      setNotificationsOpen(false);
+      return;
+    }
+    setProfileOpen(false);
+    setNotificationsOpen(true);
     setNotificationsBusy(true);
     try {
       const response = await api.get("/notifications");
@@ -370,16 +376,16 @@ function App() {
                 day: "numeric",
               })}
             </span>
-            <div className="notification-wrap">
-              <button className={`icon-btn notification-btn ${notificationsOpen ? "is-open" : ""}`} type="button" aria-label="Notifications" aria-haspopup="dialog" aria-expanded={notificationsOpen} onClick={toggleNotifications}>
+            <div className="notification-wrap" ref={notificationMenuRef}>
+              <button className={`icon-btn notification-btn ${notificationsOpen ? "is-open" : ""}`} type="button" aria-label="Open notifications" aria-haspopup="dialog" aria-expanded={notificationsOpen} onClick={toggleNotifications}>
                 <Bell size={18} />
                 {notifications.some((item) => !item.read) && <i className="notification-dot" />}
               </button>
               {notificationsOpen && (
-                <div className="notification-popover">
-                  <div className="notification-heading"><b>Notifications</b><button className="text-btn" onClick={() => setNotificationsOpen(false)}>Close</button></div>
+                <div className="notification-popover" role="dialog" aria-label="Notifications">
+                  <div className="notification-heading"><b>Notifications</b><button type="button" className="text-btn" aria-label="Close notifications" onClick={() => setNotificationsOpen(false)}>Close</button></div>
                   {notificationsBusy ? <div className="empty-state">Loading notifications…</div> : notifications.length === 0 ? <div className="empty-state">You’re all caught up.</div> : notifications.map((item) => (
-                    <button key={item._id} className={`notification-item ${item.read ? "read" : "unread"}`} onClick={() => markNotificationRead(item._id)}>
+                    <button type="button" key={item._id} className={`notification-item ${item.read ? "read" : "unread"}`} onClick={() => markNotificationRead(item._id)}>
                       <span className="notification-mark" />
                       <span><b>{item.title || "Update"}</b><small>{item.message || "No additional details."}</small></span>
                     </button>
@@ -394,7 +400,10 @@ function App() {
                 aria-label="Open account menu"
                 aria-haspopup="menu"
                 aria-expanded={profileOpen}
-                onClick={() => setProfileOpen((open) => !open)}
+                onClick={() => {
+                  setNotificationsOpen(false);
+                  setProfileOpen((open) => !open);
+                }}
               >
                 {user.name?.[0]?.toUpperCase()}
               </button>
@@ -1318,6 +1327,7 @@ function Reports() {
 }
 
 function SettingsPage({ notify, user, onUserUpdate }) {
+  const canManageGym = ["owner", "admin"].includes(user?.role);
   const [data, setData] = useState({ name: "Aurelia Fit", currency: "BDT" });
   const [profile, setProfile] = useState({ name: user?.name || "", email: user?.email || "", phone: user?.phone || "" });
   const [password, setPassword] = useState({ currentPassword: "", newPassword: "" });
@@ -1332,12 +1342,13 @@ function SettingsPage({ notify, user, onUserUpdate }) {
   }, [user?.name, user?.email, user?.phone]);
 
   useEffect(() => {
+    if (!canManageGym) return undefined;
     let active = true;
     api.get("/settings")
       .then((r) => { if (active) setData(r.data.data || { name: "Aurelia Fit", currency: "BDT" }); })
       .catch((e) => { if (active) setSettingsError(e.response?.data?.message || "Unable to load gym settings."); });
     return () => { active = false; };
-  }, []);
+  }, [canManageGym]);
 
   const saveProfile = async (e) => {
     e.preventDefault();
@@ -1409,7 +1420,7 @@ function SettingsPage({ notify, user, onUserUpdate }) {
           <button className="primary-btn" disabled={profileBusy}>{profileBusy ? "Saving profile…" : "Save profile"}</button>
         </form>
 
-        <form className="panel settings-panel" onSubmit={save}>
+        {canManageGym && <form className="panel settings-panel" onSubmit={save}>
           <div className="panel-heading">
             <div><span className="eyebrow">BUSINESS PROFILE</span><h3>Gym information</h3></div>
             <div className="stat-icon gold"><Dumbbell /></div>
@@ -1428,7 +1439,7 @@ function SettingsPage({ notify, user, onUserUpdate }) {
             </select>
           </div>
           <button className="primary-btn" disabled={busy}>{busy ? "Saving…" : "Save settings"}</button>
-        </form>
+        </form>}
 
         <form className="panel settings-panel" onSubmit={change}>
           <div className="panel-heading">

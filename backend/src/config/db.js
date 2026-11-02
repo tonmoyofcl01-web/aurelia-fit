@@ -1,8 +1,4 @@
-import dns from "node:dns";
 import mongoose from "mongoose";
-
-// Configure Google DNS before connecting to MongoDB Atlas.
-dns.setServers(["8.8.8.8"]);
 
 // Connect to MongoDB Atlas.
 export const connectDB = async () => {

@@ -10,11 +10,11 @@ AURELIA FIT is a dark, ruby-red gym management dashboard built with React, Vite,
 
 ## Configure the backend
 
-1. Open `backend/.env.example` and copy it to `backend/.env`.
+1. Copy `backend/.env.example` to `backend/.env` (overwrite the sanitized `.env` placeholder if it exists).
 2. Set `MONGODB_URI` to your MongoDB connection string. Use `aurelia_fit` as the database name.
-3. Set `JWT_SECRET` to a random value at least 32 characters long.
-4. Set `OWNER_NAME`, `OWNER_EMAIL`, and `OWNER_PASSWORD` for the first owner account.
-5. Keep `backend/.env` private. It must not be committed to Git or included in a shared ZIP.
+3. Set `JWT_SECRET` to a random value at least 32 characters long. The backend intentionally refuses to start when it is missing.
+4. Set `OWNER_NAME`, `OWNER_EMAIL`, and a unique `OWNER_PASSWORD` for the first owner account.
+5. Keep your configured `backend/.env` private. Never commit or share your real credentials. The `.env` included in this audit ZIP has been sanitized and contains no working connection string or credentials.
 
 For MongoDB Atlas, create a database user and allow the backend machine's IP in Network Access. If the password contains reserved URI characters, URL-encode it before inserting it into the connection string.
 
@@ -47,15 +47,15 @@ The backend creates the first owner account at startup when the owner environmen
   `Monday | Upper body | Bench press (3x10); Push-ups (3x12)`
 
 - **Reports:** selectable Bangladesh-local date range, monthly paid revenue, registration and attendance totals, payment/membership summaries, CSV export.
-- **Settings:** gym contact details, opening hours, currency display, and password change.
+- **Settings:** staff can update their own profile and password; owners/admins can also manage gym contact details, opening hours, and currency display.
 - **Notifications:** notification list and read state. The app currently displays notifications saved in MongoDB; it does not yet generate operational alerts automatically.
 
 ## Roles and access
 
 - `owner`: full staff dashboard access.
 - `admin`: management and reporting access.
-- `receptionist`: members, memberships, attendance, and payments.
-- `trainer`: attendance and workout-plan operations; can select active members for assigned plans.
+- `receptionist`: members, memberships, attendance, payments, and personal profile/password settings.
+- `trainer`: attendance and workout-plan operations; can select active members for assigned plans and manage personal profile/password settings.
 - `member`: reserved in the user schema, but a member self-service portal is not included in this staff dashboard build. A member login receives an explanatory access message and can sign out.
 
 ## Deployment

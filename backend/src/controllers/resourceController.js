@@ -150,13 +150,15 @@ export const createResource = (key) =>
   asyncHandler(async (req, res) => {
     const config = configs[key];
     if (!config) return res.status(404).json({ message: 'Resource not found.' });
-    const payload = pick(req.body || {}, editableFields[key] || []);
+    const payload = key === 'attendance'
+      ? pick(req.body || {}, ['member'])
+      : pick(req.body || {}, editableFields[key] || []);
 
     if (key === 'memberships' && !payload.trainer) delete payload.trainer;
     if (key === 'payments' && !payload.membership) delete payload.membership;
     if (key === 'workouts' && !payload.trainer) delete payload.trainer;
 
-    if (key === 'members' && !req.body.memberId) {
+    if (key === 'members' && !payload.memberId) {
       payload.memberId = `AF-${Date.now().toString().slice(-8)}`;
     }
     if (key === 'memberships') {
@@ -272,6 +274,9 @@ export const deleteResource = (key) =>
     }
     if (key === 'plans' && (await Membership.exists({ plan: id }))) {
       return res.status(409).json({ message: 'This plan is used by existing memberships. Deactivate it instead.' });
+    }
+    if (key === 'memberships' && (await Payment.exists({ membership: id }))) {
+      return res.status(409).json({ message: 'This membership has payment history. Keep the record and change its status instead.' });
     }
 
     const doc = await config.model.findByIdAndDelete(id);

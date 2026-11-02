@@ -10,7 +10,7 @@ router.post('/auth/login', login);
 router.post('/auth/logout', logout);
 router.get('/auth/me', protect, me);
 router.patch('/auth/password', protect, changePassword);
-router.patch('/auth/profile', protect, allowRoles('owner', 'admin'), updateProfile);
+router.patch('/auth/profile', protect, updateProfile);
 
 router.use(protect);
 router.get('/dashboard', allowRoles('owner', 'admin', 'receptionist', 'trainer'), controller.dashboard);
