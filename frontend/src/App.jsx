@@ -621,7 +621,7 @@ function App() {
           {page === "Dashboard" ? (
             <Dashboard notify={notify} />
           ) : page === "Attendance" ? (
-            <AttendancePage notify={notify} />
+            <AttendancePage notify={notify} user={user} />
           ) : page === "Reports" ? (
             <Reports />
           ) : page === "Settings" ? (
@@ -1282,7 +1282,7 @@ function ResourcePage({ title, notify, user }) {
   );
 }
 
-function AttendancePage({ notify }) {
+function AttendancePage({ notify, user }) {
   const [rows, setRows] = useState([]),
     [members, setMembers] = useState([]),
     [member, setMember] = useState(""),
@@ -1323,6 +1323,21 @@ function AttendancePage({ notify }) {
       load();
     } catch (e) {
       notify(e.response?.data?.message || "Check-out failed.");
+    }
+  };
+  const canDeleteAttendance = ["owner", "admin"].includes(user?.role);
+  const deleteAttendance = async (id) => {
+    if (!canDeleteAttendance) {
+      notify("Only an owner or admin can delete attendance records.");
+      return;
+    }
+    if (!window.confirm("Delete this attendance record? This action cannot be undone.")) return;
+    try {
+      await api.delete("/attendance/" + id);
+      notify("Attendance record deleted.");
+      load();
+    } catch (e) {
+      notify(e.response?.data?.message || "Unable to delete attendance record.");
     }
   };
   return (
@@ -1414,14 +1429,28 @@ function AttendancePage({ notify }) {
                       </span>
                     </td>
                     <td className="right">
-                      {!r.checkOut && (
-                        <button
-                          className="outline-btn small-btn"
-                          onClick={() => checkout(r.member?._id)}
-                        >
-                          Check out
-                        </button>
-                      )}
+                      <div className="attendance-actions">
+                        {!r.checkOut && (
+                          <button
+                            type="button"
+                            className="outline-btn small-btn"
+                            onClick={() => checkout(r.member?._id)}
+                          >
+                            Check out
+                          </button>
+                        )}
+                        {canDeleteAttendance && (
+                          <button
+                            type="button"
+                            className="outline-btn small-btn attendance-delete-btn danger-hover"
+                            title="Delete attendance record"
+                            aria-label={`Delete attendance record for ${r.member?.name || "member"} on ${date(r.date)}`}
+                            onClick={() => deleteAttendance(r._id)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

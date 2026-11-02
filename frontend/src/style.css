@@ -683,3 +683,9 @@ th { background: #21131a; color: #b19aa2; }
   .activity-avatar, .activity-payment-icon { width: 30px; height: 30px; }
   .activity-title { white-space: normal; }
 }
+
+
+/* Attendance visit-log actions */
+.attendance-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;min-width:max-content}
+.attendance-delete-btn{width:32px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;color:#c78c96;border-color:#56313c}
+.attendance-delete-btn:hover{color:#ffd9df;background:#55232f;border-color:#a94b5d}
