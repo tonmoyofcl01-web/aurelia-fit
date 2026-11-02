@@ -22,8 +22,13 @@ export const protect = asyncHandler(async (req, res, next) => {
   if (!user || !user.active) {
     return res.status(401).json({ message: 'Account unavailable.' });
   }
+  if (!user.gym) {
+    return res.status(403).json({ message: 'Your account is not assigned to a gym workspace.' });
+  }
 
+  // Always trust the workspace association stored in MongoDB, never a client-supplied gym ID.
   req.user = user;
+  req.gymId = user.gym;
   next();
 });
 

@@ -452,7 +452,7 @@ function App() {
           >
             <span className="gym-avatar">AF</span>
             <span className="gym-switch-copy">
-              <b>Aurelia Fit</b>
+              <b>{user.gymName || "Aurelia Fit"}</b>
               <small>Management workspace</small>
             </span>
             <ChevronDown className={`workspace-chevron ${workspaceOpen ? "is-open" : ""}`} size={15} />
@@ -466,7 +466,7 @@ function App() {
               <div className="workspace-popover-main">
                 <span className="gym-avatar">AF</span>
                 <span className="workspace-popover-copy">
-                  <b>Aurelia Fit</b>
+                  <b>{user.gymName || "Aurelia Fit"}</b>
                   <small>Management workspace</small>
                 </span>
               </div>
@@ -642,26 +642,59 @@ function App() {
 }
 
 function Login({ onLogin }) {
-  const [email, setEmail] = useState(""),
-    [password, setPassword] = useState(""),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+  const [mode, setMode] = useState("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [gymName, setGymName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const isRegister = mode === "register";
+
+  const switchMode = (nextMode) => {
+    setMode(nextMode);
+    setError("");
+    setPassword("");
+    setConfirmPassword("");
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
     setError("");
+
+    if (isRegister && password !== confirmPassword) {
+      setError("Your passwords do not match.");
+      setBusy(false);
+      return;
+    }
+    if (isRegister && password.length < 10) {
+      setError("Use a password with at least 10 characters.");
+      setBusy(false);
+      return;
+    }
+
     try {
-      const r = await api.post("/auth/login", { email, password });
+      const endpoint = isRegister ? "/auth/register" : "/auth/login";
+      const payload = isRegister
+        ? { name, gymName, email, phone, password }
+        : { email, password };
+      const r = await api.post(endpoint, payload);
       onLogin(r.data.user);
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Unable to sign in. Check your API connection.",
+          (isRegister
+            ? "Unable to create your workspace. Check your connection and try again."
+            : "Unable to sign in. Check your API connection."),
       );
     } finally {
       setBusy(false);
     }
   };
+
   return (
     <div className="login-screen">
       <div className="login-visual">
@@ -690,53 +723,153 @@ function Login({ onLogin }) {
           <span>EST. 2026</span>
         </div>
       </div>
+
       <div className="login-panel">
-        <form className="login-form" onSubmit={submit}>
+        <form className={`login-form ${isRegister ? "login-form-register" : ""}`} onSubmit={submit}>
           <div className="login-symbol">
             <Activity />
           </div>
-          <span className="eyebrow">WELCOME BACK</span>
+          <span className="eyebrow">{isRegister ? "START YOUR FITNESS BUSINESS" : "WELCOME BACK"}</span>
           <h2>
-            Sign in to your
+            {isRegister ? "Create your gym" : "Sign in to your"}
             <br />
-            workspace.
+            <em>{isRegister ? "workspace." : "workspace."}</em>
           </h2>
           <p className="muted">
-            Enter your credentials to access the dashboard.
+            {isRegister
+              ? "Set up an independent workspace for your gym."
+              : "Enter your credentials to access the dashboard."}
           </p>
-          <label>Email address</label>
+
+          {isRegister && (
+            <>
+              <label htmlFor="register-name">Your full name</label>
+              <div className="input-icon">
+                <UserRound size={17} />
+                <input
+                  id="register-name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Alex Morgan"
+                  minLength={2}
+                  maxLength={80}
+                  autoComplete="name"
+                  required
+                />
+              </div>
+              <label htmlFor="register-gym">Gym / fitness center name</label>
+              <div className="input-icon">
+                <Activity size={17} />
+                <input
+                  id="register-gym"
+                  type="text"
+                  value={gymName}
+                  onChange={(e) => setGymName(e.target.value)}
+                  placeholder="e.g. Elevate Fitness Club"
+                  minLength={2}
+                  maxLength={100}
+                  required
+                />
+              </div>
+              <label htmlFor="register-phone">Phone number <span className="auth-optional">(optional)</span></label>
+              <div className="input-icon">
+                <Phone size={17} />
+                <input
+                  id="register-phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Your contact number"
+                  maxLength={30}
+                  autoComplete="tel"
+                />
+              </div>
+            </>
+          )}
+
+          <label htmlFor="auth-email">Email address</label>
           <div className="input-icon">
             <Mail size={17} />
             <input
+              id="auth-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@gym.com"
+              autoComplete="email"
               required
             />
           </div>
-          <label>Password</label>
+
+          <label htmlFor="auth-password">Password</label>
           <div className="input-icon">
             <Lock size={17} />
             <input
+              id="auth-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
+              placeholder={isRegister ? "Create a strong password" : "Enter your password"}
+              minLength={isRegister ? 10 : undefined}
+              maxLength={128}
+              autoComplete={isRegister ? "new-password" : "current-password"}
               required
             />
           </div>
+
+          {isRegister && (
+            <>
+              <label htmlFor="register-confirm-password">Confirm password</label>
+              <div className="input-icon">
+                <Lock size={17} />
+                <input
+                  id="register-confirm-password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Enter your password again"
+                  minLength={10}
+                  maxLength={128}
+                  autoComplete="new-password"
+                  required
+                />
+              </div>
+              <small className="auth-helper">Your account will become the owner of this gym workspace.</small>
+            </>
+          )}
+
           {error && (
-            <div className="form-error">
+            <div className="form-error" role="alert">
               <AlertCircle size={16} />
               {error}
             </div>
           )}
+
           <button className="primary-btn login-submit" disabled={busy}>
-            {busy ? "Signing in…" : "Sign in"} <ChevronRight size={17} />
+            {busy
+              ? (isRegister ? "Creating workspace…" : "Signing in…")
+              : (isRegister ? "Create gym workspace" : "Sign in")}
+            <ChevronRight size={17} />
           </button>
+
+          <div className="auth-switch">
+            {isRegister ? (
+              <>
+                <span>Already have a workspace?</span>
+                <button type="button" onClick={() => switchMode("login")}>Sign in</button>
+              </>
+            ) : (
+              <>
+                <span>New to AURELIA FIT?</span>
+                <button type="button" onClick={() => switchMode("register")}>Create your gym account</button>
+              </>
+            )}
+          </div>
           <small className="login-note">
-            Secure access · Authorized personnel only
+            {isRegister
+              ? "Each gym gets its own private workspace and records."
+              : "Secure access · Authorized personnel only"}
           </small>
         </form>
       </div>

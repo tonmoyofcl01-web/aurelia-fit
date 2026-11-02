@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { allowRoles, protect } from '../middleware/auth.js';
-import { changePassword, login, logout, me, updateProfile } from '../controllers/authController.js';
+import { changePassword, login, logout, me, register, updateProfile } from '../controllers/authController.js';
 import * as controller from '../controllers/resourceController.js';
 
 const router = Router();
 
 router.get('/health', (_req, res) => res.json({ status: 'ok', app: 'Aurelia Fit API' }));
+router.post('/auth/register', register);
 router.post('/auth/login', login);
 router.post('/auth/logout', logout);
 router.get('/auth/me', protect, me);
