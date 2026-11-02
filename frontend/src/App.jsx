@@ -335,14 +335,16 @@ function App() {
             className="profile-mini profile-mini-button"
             type="button"
             onClick={() => { setPage("Settings"); setSidebar(false); }}
-            title="Open account settings"
+            aria-label="Open account settings"
           >
             <div className="avatar">{user.name?.[0]?.toUpperCase()}</div>
             <div className="profile-info">
               <b>{user.name}</b>
               <small>{user.role}</small>
             </div>
-            <Settings size={15} className="profile-settings-icon" />
+            <span className="profile-settings-action" aria-hidden="true">
+              <Settings size={16} className="profile-settings-icon" />
+            </span>
           </button>
         </div>
       </aside>
@@ -369,7 +371,7 @@ function App() {
               })}
             </span>
             <div className="notification-wrap">
-              <button className="icon-btn notification-btn" title="Notifications" aria-label="Notifications" aria-expanded={notificationsOpen} onClick={toggleNotifications}>
+              <button className={`icon-btn notification-btn ${notificationsOpen ? "is-open" : ""}`} type="button" aria-label="Notifications" aria-haspopup="dialog" aria-expanded={notificationsOpen} onClick={toggleNotifications}>
                 <Bell size={18} />
                 {notifications.some((item) => !item.read) && <i className="notification-dot" />}
               </button>
@@ -389,7 +391,6 @@ function App() {
               <button
                 className={`top-avatar profile-trigger ${profileOpen ? "is-open" : ""}`}
                 type="button"
-                title="Account menu"
                 aria-label="Open account menu"
                 aria-haspopup="menu"
                 aria-expanded={profileOpen}
