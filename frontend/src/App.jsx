@@ -175,10 +175,12 @@ function App() {
     [notificationsOpen, setNotificationsOpen] = useState(false),
     [notifications, setNotifications] = useState([]),
     [notificationsBusy, setNotificationsBusy] = useState(false),
-    [profileOpen, setProfileOpen] = useState(false);
+    [profileOpen, setProfileOpen] = useState(false),
+    [workspaceOpen, setWorkspaceOpen] = useState(false);
   const toastTimer = useRef(null);
   const profileMenuRef = useRef(null);
   const notificationMenuRef = useRef(null);
+  const workspaceMenuRef = useRef(null);
   const notify = (message) => {
     setToast(message);
     window.clearTimeout(toastTimer.current);
@@ -186,15 +188,17 @@ function App() {
   };
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
   useEffect(() => {
-    if (!profileOpen && !notificationsOpen) return undefined;
+    if (!profileOpen && !notificationsOpen && !workspaceOpen) return undefined;
     const closeOnOutside = (event) => {
       if (!profileMenuRef.current?.contains(event.target)) setProfileOpen(false);
       if (!notificationMenuRef.current?.contains(event.target)) setNotificationsOpen(false);
+      if (!workspaceMenuRef.current?.contains(event.target)) setWorkspaceOpen(false);
     };
     const closeOnEscape = (event) => {
       if (event.key === "Escape") {
         setProfileOpen(false);
         setNotificationsOpen(false);
+        setWorkspaceOpen(false);
       }
     };
     document.addEventListener("pointerdown", closeOnOutside);
@@ -203,7 +207,7 @@ function App() {
       document.removeEventListener("pointerdown", closeOnOutside);
       document.removeEventListener("keydown", closeOnEscape);
     };
-  }, [profileOpen, notificationsOpen]);
+  }, [profileOpen, notificationsOpen, workspaceOpen]);
   const loadUser = async () => {
     try {
       const r = await api.get("/auth/me");
@@ -233,6 +237,7 @@ function App() {
       setLogoutBusy(false);
       setNotificationsOpen(false);
       setProfileOpen(false);
+      setWorkspaceOpen(false);
     }
   };
   const toggleNotifications = async () => {
@@ -241,6 +246,7 @@ function App() {
       return;
     }
     setProfileOpen(false);
+    setWorkspaceOpen(false);
     setNotificationsOpen(true);
     setNotificationsBusy(true);
     try {
@@ -296,13 +302,58 @@ function App() {
             <X size={18} />
           </button>
         </div>
-        <div className="gym-switch">
-          <div className="gym-avatar">AF</div>
-          <div>
-            <b>Aurelia Fit</b>
-            <small>Management workspace</small>
-          </div>
-          <ChevronDown size={15} />
+        <div className="workspace-switch-wrap" ref={workspaceMenuRef}>
+          <button
+            className={`gym-switch ${workspaceOpen ? "is-open" : ""}`}
+            type="button"
+            aria-label="View current workspace details"
+            aria-haspopup="dialog"
+            aria-expanded={workspaceOpen}
+            onClick={() => {
+              setNotificationsOpen(false);
+              setProfileOpen(false);
+              setWorkspaceOpen((open) => !open);
+            }}
+          >
+            <span className="gym-avatar">AF</span>
+            <span className="gym-switch-copy">
+              <b>Aurelia Fit</b>
+              <small>Management workspace</small>
+            </span>
+            <ChevronDown className={`workspace-chevron ${workspaceOpen ? "is-open" : ""}`} size={15} />
+          </button>
+          {workspaceOpen && (
+            <div className="workspace-popover" role="dialog" aria-label="Current workspace details">
+              <div className="workspace-popover-heading">
+                <span>WORKSPACE DETAILS</span>
+                <span className="workspace-active-badge"><i /> Active</span>
+              </div>
+              <div className="workspace-popover-main">
+                <span className="gym-avatar">AF</span>
+                <span className="workspace-popover-copy">
+                  <b>Aurelia Fit</b>
+                  <small>Management workspace</small>
+                </span>
+              </div>
+              <p className="workspace-popover-description">
+                This is your currently connected gym workspace.
+              </p>
+              <button
+                className="workspace-settings-link"
+                type="button"
+                onClick={() => {
+                  setPage("Settings");
+                  setWorkspaceOpen(false);
+                  setSidebar(false);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              >
+                <Settings size={15} />
+                <span>Workspace settings</span>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
         </div>
         <nav>
           {nav.map((group) => (
@@ -316,13 +367,14 @@ function App() {
                     className={`nav-link ${page === name ? "active" : ""}`}
                     onClick={() => {
                       setPage(name);
+                      setWorkspaceOpen(false);
                       setSidebar(false);
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
                   >
                     <Icon size={18} />
                     <span>{name}</span>
-                    {name === "Dashboard" && <i />}
+                    {page === name && <i aria-hidden="true" />}
                   </button>
                 ))}
             </div>
@@ -402,6 +454,7 @@ function App() {
                 aria-expanded={profileOpen}
                 onClick={() => {
                   setNotificationsOpen(false);
+                  setWorkspaceOpen(false);
                   setProfileOpen((open) => !open);
                 }}
               >
