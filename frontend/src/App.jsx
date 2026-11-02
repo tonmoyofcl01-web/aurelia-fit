@@ -934,18 +934,24 @@ function Dashboard() {
                 </div>
               </div>
               {(data.recentMembers || []).length ? (
-                data.recentMembers.map((m) => (
-                  <div className="activity-row" key={m._id}>
-                    <div className="avatar">{m.name?.[0]?.toUpperCase()}</div>
-                    <div>
-                      <b>{m.name}</b>
-                      <small>
-                        {m.memberId} · {date(m.createdAt)}
-                      </small>
+                <div className="activity-list">
+                  {data.recentMembers.map((m) => (
+                    <div className="activity-row" key={m._id}>
+                      <div className="avatar activity-avatar">
+                        {m.name?.[0]?.toUpperCase() || "M"}
+                      </div>
+                      <div className="activity-copy">
+                        <b className="activity-title">{m.name || "Unnamed member"}</b>
+                        <small className="activity-meta">
+                          <span>{m.memberId || "Member ID unavailable"}</span>
+                          <span className="activity-meta-separator" aria-hidden="true">•</span>
+                          <time>{date(m.createdAt)}</time>
+                        </small>
+                      </div>
+                      <span className={`status ${m.status || "inactive"}`}>{m.status || "Unknown"}</span>
                     </div>
-                    <span className={`status ${m.status}`}>{m.status}</span>
-                  </div>
-                ))
+                  ))}
+                </div>
               ) : (
                 <div className="empty-state">No members registered yet.</div>
               )}
@@ -958,18 +964,24 @@ function Dashboard() {
                 </div>
               </div>
               {(data.recentPayments || []).length ? (
-                data.recentPayments.map((p) => (
-                  <div className="activity-row" key={p._id}>
-                    <div className="stat-icon green">
-                      <Wallet size={17} />
+                <div className="activity-list">
+                  {data.recentPayments.map((p) => (
+                    <div className="activity-row payment-activity-row" key={p._id}>
+                      <div className="stat-icon green activity-payment-icon">
+                        <Wallet size={17} />
+                      </div>
+                      <div className="activity-copy">
+                        <b className="activity-title">{p.member?.name || "Member"}</b>
+                        <small className="activity-meta">
+                          <time>{date(p.createdAt)}</time>
+                          <span className="activity-meta-separator" aria-hidden="true">•</span>
+                          <span>{p.method || p.paymentMethod || "Payment"}</span>
+                        </small>
+                      </div>
+                      <strong className="activity-amount">{money(p.amount)}</strong>
                     </div>
-                    <div>
-                      <b>{p.member?.name || "Member"}</b>
-                      <small>{date(p.createdAt)}</small>
-                    </div>
-                    <strong>{money(p.amount)}</strong>
-                  </div>
-                ))
+                  ))}
+                </div>
               ) : (
                 <div className="empty-state">No payments recorded yet.</div>
               )}
