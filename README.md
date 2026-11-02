@@ -1,73 +1,291 @@
-# AURELIA FIT
+# AURELIA FIT — Gym & Fitness Center Management System
 
-AURELIA FIT is a dark, ruby-red gym management dashboard built with React, Vite, Tailwind CSS v4, Express, and MongoDB/Mongoose. It is designed as a single-gym academic/demo application.
+AURELIA FIT is a full-stack gym management application for handling the everyday operations of a fitness center from one dashboard. It brings member records, trainers, membership plans, attendance, payments, workout assignments, reports, and workspace settings into a single interface.
+
+The project uses a dark charcoal and ruby-red visual theme and is designed as a single-gym academic/demo application.
+
+## Dashboard Preview
+
+![AURELIA FIT dashboard](assets/AureliaFit.png)
+
+## Features
+
+### Dashboard & Analytics
+- Overview of total and active members.
+- Active trainer and daily attendance counts.
+- Memberships expiring soon.
+- Monthly paid-revenue overview.
+- Membership status visualization.
+- Recent member activity and payment transactions.
+
+### Member Management
+- Create, view, search, edit, and manage member records.
+- Generate member IDs.
+- Track member status and membership information.
+
+### Trainer Management
+- Create and manage trainer records.
+- Associate trainers with memberships and workout plans.
+
+### Plans & Memberships
+- Create and maintain membership plans, including duration and price.
+- Assign plans to members.
+- Track membership start/end dates, status, and assigned trainer.
+
+### Attendance
+- Record member check-ins and check-outs.
+- Review the visit log and attendance history.
+- Prevent duplicate open check-ins for the same member.
+- Delete attendance records where the signed-in role has permission.
+
+### Payments
+- Record payments and associate them with members and, when applicable, memberships.
+- Track paid, pending, and refunded payment statuses.
+- View payment history and transaction summaries.
+- Supports recording cash, bank, mobile-banking, and card payments; no online payment gateway is integrated.
+
+### Workout Plans
+- Create workout plans for members.
+- Optionally assign a trainer.
+- Define a weekly schedule and add notes.
+
+### Reports
+- Filter reporting data by date range.
+- Review registrations, attendance, paid revenue, payment summaries, and membership status.
+- Export report data as CSV.
+
+### Settings, Authentication & Notifications
+- Cookie-based staff authentication.
+- Role-based access control.
+- Update account profile and change password.
+- Configure gym contact information, opening hours, and currency display.
+- View stored notifications and mark them as read.
+
+## Technology Stack
+
+| Area | Technologies |
+|---|---|
+| Frontend | React 18, Vite 6 |
+| Styling | Tailwind CSS v4, custom CSS |
+| UI & charts | Lucide React, Recharts |
+| HTTP client | Axios |
+| Backend | Node.js, Express 4 |
+| Database | MongoDB, Mongoose |
+| Authentication | JSON Web Tokens, HttpOnly cookies, bcryptjs |
+| Backend middleware | CORS, Helmet, cookie-parser, express-rate-limit, Morgan |
+
+## Project Structure
+
+```text
+aurelia-fit/
+├── backend/
+│   ├── src/
+│   │   ├── config/
+│   │   ├── controllers/
+│   │   ├── middleware/
+│   │   ├── models/
+│   │   ├── routes/
+│   │   ├── utils/
+│   │   ├── bootstrap.js
+│   │   └── server.js
+│   ├── .env.example
+│   ├── package.json
+│   └── package-lock.json
+├── frontend/
+│   ├── src/
+│   │   ├── api.js
+│   │   ├── App.jsx
+│   │   ├── main.jsx
+│   │   └── style.css
+│   ├── index.html
+│   ├── vite.config.js
+│   ├── package.json
+│   └── package-lock.json
+├── package.json
+├── package-lock.json
+├── .gitignore
+└── README.md
+```
+
+The exact set of utility and configuration files may evolve as the project is maintained.
 
 ## Requirements
 
 - Node.js 20 or newer
 - npm
-- MongoDB Atlas or a local MongoDB instance
+- MongoDB Atlas account or a reachable MongoDB instance
+- Git (optional, for cloning and version control)
 
-## Configure the backend
+## Getting Started
 
-1. Copy `backend/.env.example` to `backend/.env` (overwrite the sanitized `.env` placeholder if it exists).
-2. Set `MONGODB_URI` to your MongoDB connection string. Use `aurelia_fit` as the database name.
-3. Set `JWT_SECRET` to a random value at least 32 characters long. The backend intentionally refuses to start when it is missing.
-4. Set `OWNER_NAME`, `OWNER_EMAIL`, and a unique `OWNER_PASSWORD` for the first owner account.
-5. Keep your configured `backend/.env` private. Never commit or share your real credentials. The `.env` included in this audit ZIP has been sanitized and contains no working connection string or credentials.
+### 1. Clone the repository
 
-For MongoDB Atlas, create a database user and allow the backend machine's IP in Network Access. If the password contains reserved URI characters, URL-encode it before inserting it into the connection string.
+```bash
+git clone <your-repository-url>
+cd aurelia-fit
+```
 
-Mongoose creates the collections and indexes when the application connects and writes its first records. No manual collection creation is required.
+If you already have the project locally, open a terminal in the project root instead.
 
-## Install and run
+### 2. Install dependencies
+
+Run from the project root:
+
+```bash
+npm run install:all
+```
+
+This installs the root, backend, and frontend dependencies.
+
+### 3. Configure environment variables
+
+Create the backend environment file from the example.
+
+**Windows PowerShell:**
+
+```powershell
+Copy-Item backend/.env.example backend/.env
+```
+
+**Windows Command Prompt:**
+
+```cmd
+copy backend\.env.example backend\.env
+```
+
+Open `backend/.env` and configure the values:
+
+```env
+PORT=5000
+NODE_ENV=development
+APP_TIMEZONE=Asia/Dhaka
+
+MONGODB_URI=mongodb+srv://DB_USER:URL_ENCODED_PASSWORD@YOUR_CLUSTER.mongodb.net/aurelia_fit?retryWrites=true&w=majority
+
+JWT_SECRET=replace_with_a_long_random_secret_at_least_32_characters
+JWT_EXPIRES_IN=8h
+
+CLIENT_URL=http://localhost:5173
+COOKIE_SAME_SITE=lax
+COOKIE_SECURE=false
+
+OWNER_NAME=Gym Owner
+OWNER_EMAIL=owner@example.com
+OWNER_PASSWORD=ChangeThisImmediately123!
+```
+
+Replace all example credentials and connection details with your own values. Use a long, random JWT secret and a strong owner password.
+
+For MongoDB Atlas:
+1. Create a database user.
+2. Allow the development machine's IP address in Atlas Network Access.
+3. Use the Atlas driver connection string for `MONGODB_URI`.
+4. URL-encode reserved characters in the database username/password before placing them in the URI.
+
+> **Windows DNS note:** If Node.js reports `querySrv ECONNREFUSED` for a MongoDB Atlas `mongodb+srv://` URI while `nslookup` works, this project includes a DNS bootstrap workaround. Configure `NODE_DNS_SERVERS=1.1.1.1,8.8.8.8` in `backend/.env` when using that bootstrap. Do not add this setting unless it is needed in your environment.
+
+### 4. Start the application
 
 From the project root:
 
 ```bash
-npm run install:all
 npm run dev
 ```
 
-- Frontend: `http://localhost:5173`
-- Backend health check: `http://localhost:5000/api/health`
+The root script starts the backend and frontend together.
 
-The backend creates the first owner account at startup when the owner environment variables are present and that email does not already exist. After your first login, change the password from **Settings → Change password**.
+Default local addresses:
 
-## Current modules
+| Service | URL |
+|---|---|
+| Frontend | http://localhost:5173 |
+| Backend API health check | http://localhost:5000/api/health |
 
-- **Authentication:** owner/admin/receptionist/trainer staff access, HttpOnly cookie session, logout, and password change.
-- **Dashboard:** member/trainer counts, active and expiring memberships, attendance, monthly paid revenue, recent registrations, recent payments, and membership status.
-- **Members and trainers:** create, search, edit, and guarded delete; members receive generated member IDs.
-- **Plans and memberships:** maintain membership plans, assign a plan to a member, calculate the membership end date from its duration, and track expiry.
-- **Attendance:** member check-in, check-out, visit log, duplicate open check-in prevention, and Dhaka-local attendance date.
-- **Payments:** manual cash/bank/mobile-banking/card payment records, optional linked membership selection, paid/pending/refunded statuses, and transaction reporting. No online payment gateway is connected.
-- **Workout plans:** assign a plan to a member and optionally a trainer. Enter one schedule line per day using this format in the schedule field:
+Vite automatically selects another port (for example, `5174`) if the default port is already occupied. When that happens, set `CLIENT_URL` in `backend/.env` to the exact frontend origin shown in the Vite terminal, then restart the backend. Credentialed cookie requests require the origin to match.
 
-  `Monday | Upper body | Bench press (3x10); Push-ups (3x12)`
+### 5. Sign in
 
-- **Reports:** selectable Bangladesh-local date range, monthly paid revenue, registration and attendance totals, payment/membership summaries, CSV export.
-- **Settings:** staff can update their own profile and password; owners/admins can also manage gym contact details, opening hours, and currency display.
-- **Notifications:** notification list and read state. The app currently displays notifications saved in MongoDB; it does not yet generate operational alerts automatically.
+On startup, the backend creates the initial owner account from `OWNER_NAME`, `OWNER_EMAIL`, and `OWNER_PASSWORD` only when an account with that email does not already exist.
 
-## Roles and access
+After the first sign-in, change the initial password from **Settings → Change password**.
 
-- `owner`: full staff dashboard access.
-- `admin`: management and reporting access.
-- `receptionist`: members, memberships, attendance, payments, and personal profile/password settings.
-- `trainer`: attendance and workout-plan operations; can select active members for assigned plans and manage personal profile/password settings.
-- `member`: reserved in the user schema, but a member self-service portal is not included in this staff dashboard build. A member login receives an explanatory access message and can sign out.
+Changing `OWNER_PASSWORD` in `.env` does not reset the password of an owner account that already exists in MongoDB.
 
-## Deployment
+## Available Scripts
 
-- Deploy the `frontend` folder to Vercel. Set `VITE_API_URL` to your deployed backend's API root, for example `https://your-api.example.com/api`.
-- Deploy the `backend` folder to a Node.js host that supports Express processes. Set the variables from `backend/.env.example` on that host.
-- Set `CLIENT_URL` to the exact deployed frontend origin.
-- For cross-site cookie authentication over HTTPS, use `COOKIE_SAME_SITE=none` and `COOKIE_SECURE=true`.
-- Keep MongoDB Atlas Network Access limited to the backend host's required IP/network configuration.
+Run these commands from the project root:
 
-This repository deploys the frontend to Vercel; it does not configure the Express API as a Vercel serverless function.
+| Command | Description |
+|---|---|
+| `npm run install:all` | Install root, backend, and frontend dependencies |
+| `npm run dev` | Run backend and frontend in development mode |
+| `npm run build` | Build the frontend for production |
+| `npm start` | Start the backend |
 
-## Known scope limits
+You can also run frontend/backend scripts from their respective folders using the scripts in each package.
 
-This is a student/demo application, not a production-certified SaaS. It does not include member self-registration, staff-account administration/invitations, a full member portal, printable payment receipts, online payment processing, automated notification generation, multi-gym tenancy, or automated end-to-end tests. Review authentication, authorization, backups, monitoring, privacy, and deployment security before real commercial use.
+## Roles & Access
+
+The application includes role-based access for staff workflows:
+
+- **Owner:** full staff-dashboard access.
+- **Admin:** management and reporting access.
+- **Receptionist:** member, membership, attendance, and payment workflows.
+- **Trainer:** attendance and workout-plan workflows.
+- **Member:** reserved in the user model; a member self-service portal is not part of this staff-dashboard build.
+
+Access is enforced by backend route permissions as well as the frontend navigation.
+
+## Manual Testing
+
+The following essential workflows were manually exercised during development:
+
+- Staff sign-in and sign-out.
+- Member creation and lookup.
+- Trainer creation.
+- Membership plan creation and membership assignment.
+- Attendance check-in.
+- Payment recording with a paid status.
+- Dashboard and report revenue display after the revenue-date fix.
+- Settings page access and protected-page behavior after logout.
+
+This is a manual smoke-test record, not a claim of complete automated or production testing.
+
+## Deployment Notes
+
+A typical deployment separates the frontend and Express API:
+
+1. Deploy the `frontend` directory to a static frontend host such as Vercel.
+2. Deploy the `backend` directory to a Node.js host that supports a persistent Express process.
+3. Set `VITE_API_URL` in the frontend build environment to the deployed API root, for example `https://your-api.example.com/api`.
+4. Configure the backend environment variables in the hosting provider.
+5. Set `CLIENT_URL` to the exact deployed frontend origin.
+6. For cross-site cookie authentication over HTTPS, configure `COOKIE_SAME_SITE=none` and `COOKIE_SECURE=true`.
+7. Restrict MongoDB Atlas Network Access to the backend host's required network/IP range.
+
+The Express API is not configured as a Vercel serverless function by this project.
+
+## Security & Repository Hygiene
+
+- Never commit `backend/.env` or other files containing credentials.
+- Keep `admin_account.txt` out of version control.
+- Use `.env.example` only for placeholder values.
+- Rotate credentials if a real secret is accidentally committed or shared.
+- Do not publish database connection strings, JWT secrets, owner passwords, or private account information.
+
+## Current Scope & Limitations
+
+AURELIA FIT is an academic/demo application and is not a production-certified SaaS platform. Current scope limitations include:
+
+- Single-gym workspace; multi-gym tenancy is not implemented.
+- No online payment gateway integration.
+- No member self-registration or member self-service portal.
+- No staff invitation/account-administration workflow.
+- Notifications can be viewed and marked as read, but operational alerts are not automatically generated.
+- No automated end-to-end test suite is included.
+
+Before using the application for real commercial operations, add appropriate automated tests and review authorization, data backups, audit logging, monitoring, privacy, and deployment security.
+
+## License
+
+No license has been specified. Add a `LICENSE` file before redistributing the project under an open-source license.
